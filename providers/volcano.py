@@ -24,19 +24,58 @@ class VolcanoTTSProvider(BaseTTSProvider):
     - 支持流式和非流式合成
     """
 
-    # 可用音色
+    # 可用音色 — 标准 + 豆包大模型 BV 系列
     VOICES = {
-        "zh_female_qingxin": "清新女声 (推荐默认)",
-        "zh_female_tianmei": "甜美女声",
-        "zh_male_wenrou": "温柔男声",
-        "zh_female_shuangkuaidale": "爽快大大咧咧女声",
-        "zh_male_chunhou": "醇厚男声",
-        "zh_female_zhixing": "知性女声",
-        "zh_female_wenjing": "文静女声",
-        "zh_male_shengdan": "圣诞男声",
-        "zh_female_xiaoqian": "小倩 (北京话)",
-        "zh_male_zhubo": "男主播",
-        "zh_female_xiaoyue": "小悦 (东北话)",
+        # ── 基础音色 (免费) ──
+        "zh_female_qingxin": "清新女声 — 通用 (基础)",
+        "zh_female_tianmei": "甜美女声 — 通用 (基础)",
+        "zh_male_wenrou": "温柔男声 — 通用 (基础)",
+        "zh_female_shuangkuaidale": "爽快大大咧咧女声 (基础)",
+        "zh_male_chunhou": "醇厚男声 (基础)",
+        "zh_female_zhixing": "知性女声 (基础)",
+        "zh_female_wenjing": "文静女声 (基础)",
+        "zh_male_shengdan": "圣诞男声 (基础)",
+        "zh_female_xiaoqian": "小倩-北京话 (基础)",
+        "zh_male_zhubo": "男主播 (基础)",
+        "zh_female_xiaoyue": "小悦-东北话 (基础)",
+        # ── 豆包语音大模型 2.0 仿真人 ⭐推荐 ──
+        "BV700_V2_streaming": "灿灿 2.0 — 超拟真甜美女声 ⭐",
+        "BV705_streaming": "炀炀 — 阳光开朗女声 ⭐",
+        "BV001_streaming": "通用女声 — 大模型仿真人 ⭐",
+        "BV002_streaming": "通用男声 — 大模型仿真人 ⭐",
+        # ── 豆包语音大模型 — 风格化仿真人 ──
+        "BV123_streaming": "阳光青年 — 青春向上",
+        "BV120_streaming": "反卷青年 — 慵懒随性",
+        "BV119_streaming": "通用赘婿 — 网文旁白",
+        "BV115_streaming": "古风少御 — 古装女声",
+        "BV107_streaming": "霸气青叔 — 沉稳大叔",
+        "BV100_streaming": "质朴青年 — 自然男声",
+        "BV104_streaming": "温柔淑女 — 温婉女声",
+        "BV004_streaming": "开朗青年 — 活泼男声",
+        "BV113_streaming": "甜宠少御 — 娇柔女声",
+        "BV102_streaming": "儒雅青年 — 斯文男声",
+        "BV007_streaming": "亲切女声 — 亲和力女声",
+        "BV009_streaming": "知性女声 — 成熟知性",
+        "BV008_streaming": "亲切男声 — 亲和力男声",
+        "BV419_streaming": "诚诚 — 童声男孩",
+        "BV415_streaming": "童童 — 可爱童声",
+        "BV158_streaming": "智慧老者 — 老年智者",
+        "BV157_streaming": "慈爱姥姥 — 慈祥老人",
+        "BV142_streaming": "沉稳解说男 — 纪录片解说",
+        "BV143_streaming": "潇洒青年 — 豪迈男声",
+        "BV159_streaming": "纨绔青年 — 痞气青年",
+        "BV428_streaming": "清新文艺女声 — 文艺范",
+        "BV403_streaming": "鸡汤女声 — 治愈系",
+        "BV426_streaming": "懒小羊 — 慵懒萌音",
+        # ── 场景化仿真人 ──
+        "BV411_streaming": "影视解说小帅 🔥 — 抖音电影解说",
+        "BV437_streaming": "解说小帅-多情感 🔥 — 多情感版小帅",
+        "BV412_streaming": "影视解说小美 🔥 — 女声电影解说",
+        "BV418_streaming": "直播一姐 — 带货直播女声",
+        "BV410_streaming": "活力解说男 — 体育赛事解说",
+        "BV408_streaming": "译制片男声 — 外语配音风格",
+        "BV405_streaming": "甜美小源 — 少女可爱音",
+        "BR001_streaming": "说唱小哥 — 嘻哈风格rap",
     }
 
     # 支持的音频格式

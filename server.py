@@ -3,6 +3,8 @@
 
 import io
 import sys
+import time
+import tempfile
 import traceback
 from pathlib import Path
 
@@ -14,7 +16,7 @@ from flask import Flask, request, jsonify, send_file, render_template
 from flask_cors import CORS
 import yaml
 
-from providers import PROVIDERS
+from providers import PROVIDERS, CLONE_PROVIDERS
 
 app = Flask(__name__)
 CORS(app)
@@ -54,6 +56,224 @@ def get_provider(provider_name=None):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/clone")
+def clone_page():
+    return render_template("clone.html")
+
+
+# ============================================================
+# 音色克隆 API 路由
+# ============================================================
+
+
+@app.route("/api/clone/providers")
+def api_clone_providers():
+    """返回支持音色克隆的服务商"""
+    config = get_config()
+    result = []
+    for name, cls in CLONE_PROVIDERS.items():
+        try:
+            p = cls(config)
+            result.append(
+                {
+                    "id": name,
+                    "name": p.provider_name,
+                    "supported_formats": p.supported_formats,
+                    "max_audio_duration": p.max_audio_duration,
+                    "has_emotions": hasattr(p, "get_available_emotions"),
+                    "has_styles": hasattr(p, "get_available_styles"),
+                    "has_dialects": hasattr(p, "get_available_dialects"),
+                }
+            )
+        except Exception as e:
+            result.append({"id": name, "name": name, "error": str(e)})
+    return jsonify({"providers": result})
+
+
+@app.route("/api/clone/voices")
+def api_clone_voices():
+    """列出已克隆的音色"""
+    provider_name = request.args.get("provider", "baidu_clone")
+    if provider_name not in CLONE_PROVIDERS:
+        return jsonify({"error": f"不支持的服务商: {provider_name}"}), 400
+
+    config = get_config()
+    try:
+        p = CLONE_PROVIDERS[provider_name](config)
+        voices = p.list_voices()
+        # 也获取风格/情感/方言列表
+        extras = {}
+        if hasattr(p, "get_available_emotions"):
+            extras["emotions"] = p.get_available_emotions()
+        if hasattr(p, "get_available_styles"):
+            extras["styles"] = p.get_available_styles()
+        if hasattr(p, "get_available_dialects"):
+            extras["dialects"] = p.get_available_dialects()
+
+        return jsonify(
+            {
+                "provider": provider_name,
+                "name": p.provider_name,
+                "voices": [v.to_dict() for v in voices],
+                **extras,
+            }
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/clone/create", methods=["POST"])
+def api_clone_create():
+    """创建克隆音色 (上传参考音频)"""
+    provider_name = request.form.get("provider", "baidu_clone")
+    voice_name = (request.form.get("voice_name") or "").strip()
+
+    if not voice_name:
+        return jsonify({"error": "请输入音色名称"}), 400
+    if provider_name not in CLONE_PROVIDERS:
+        return jsonify({"error": f"不支持的服务商: {provider_name}"}), 400
+
+    # 检查音频文件
+    if "audio" not in request.files:
+        return jsonify({"error": "请上传参考音频文件"}), 400
+
+    audio_file = request.files["audio"]
+    if audio_file.filename == "":
+        return jsonify({"error": "请选择音频文件"}), 400
+
+    # 保存临时文件
+    ext = Path(audio_file.filename).suffix or ".wav"
+    tmp_path = Path(tempfile.gettempdir()) / f"tts_clone_upload_{int(time.time())}{ext}"
+    audio_file.save(str(tmp_path))
+
+    config = get_config()
+    try:
+        p = CLONE_PROVIDERS[provider_name](config)
+
+        kwargs = {}
+        # 可选参数
+        lang = request.form.get("lang")
+        if lang:
+            kwargs["lang"] = lang
+        style = request.form.get("style")
+        if style:
+            kwargs["style"] = style
+
+        clone_voice = p.create_voice(
+            audio_path=str(tmp_path),
+            voice_name=voice_name,
+            **kwargs,
+        )
+
+        # 清理临时文件
+        try:
+            tmp_path.unlink()
+        except Exception:
+            pass
+
+        return jsonify(
+            {
+                "success": True,
+                "voice": clone_voice.to_dict(),
+                "message": f"音色 '{voice_name}' 克隆成功!",
+            }
+        )
+    except Exception as e:
+        traceback.print_exc()
+        try:
+            tmp_path.unlink()
+        except Exception:
+            pass
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/clone/synthesize", methods=["POST"])
+def api_clone_synthesize():
+    """使用克隆音色合成语音"""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "请提供 JSON 请求体"}), 400
+
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "请输入要合成的文本"}), 400
+
+    voice_id = data.get("voice_id")
+    if not voice_id:
+        return jsonify({"error": "请指定克隆音色 ID"}), 400
+
+    provider_name = data.get("provider", "baidu_clone")
+    if provider_name not in CLONE_PROVIDERS:
+        return jsonify({"error": f"不支持的服务商: {provider_name}"}), 400
+
+    config = get_config()
+    try:
+        p = CLONE_PROVIDERS[provider_name](config)
+
+        kwargs = {
+            "speed": data.get("speed", 50),
+            "volume": data.get("volume", 50),
+            "pitch": data.get("pitch", 50),
+        }
+
+        # 可选: 情感 / 风格 / 方言
+        emotion = data.get("emotion")
+        if emotion:
+            kwargs["emotion"] = emotion
+        style = data.get("style")
+        if style:
+            kwargs["style"] = style
+        dialect = data.get("dialect")
+        if dialect:
+            kwargs["dialect"] = dialect
+
+        ext = data.get("format", "mp3")
+        timestamp = int(time.time() * 1000)
+        filename = f"tts_clone_{provider_name}_{voice_id}_{timestamp}.{ext}"
+        output_path = str(OUTPUT_DIR / filename)
+
+        result_path = p.synthesize(
+            text=text,
+            voice_id=voice_id,
+            output_path=output_path,
+            **kwargs,
+        )
+
+        file_size = Path(result_path).stat().st_size
+
+        return jsonify(
+            {
+                "success": True,
+                "filename": Path(result_path).name,
+                "path": result_path,
+                "size": file_size,
+                "size_kb": round(file_size / 1024, 1),
+                "provider": provider_name,
+                "provider_name": p.provider_name,
+            }
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/clone/voice/<voice_id>", methods=["DELETE"])
+def api_clone_delete(voice_id):
+    """删除克隆音色"""
+    provider_name = request.args.get("provider", "baidu_clone")
+    if provider_name not in CLONE_PROVIDERS:
+        return jsonify({"error": f"不支持的服务商: {provider_name}"}), 400
+
+    config = get_config()
+    try:
+        p = CLONE_PROVIDERS[provider_name](config)
+        ok = p.delete_voice(voice_id)
+        return jsonify({"success": ok, "message": "已删除" if ok else "音色不存在"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ============================================================
@@ -154,8 +374,15 @@ def api_synthesize():
     if pitch is not None:
         kwargs["pitch"] = pitch
 
+    # 讯飞超拟人专用参数
+    oral_level = data.get("oral_level")
+    if oral_level:
+        kwargs["oral_level"] = oral_level
+    scene = data.get("scene")
+    if scene is not None:
+        kwargs["scene"] = scene
+
     # 生成唯一文件名
-    import time
     timestamp = int(time.time() * 1000)
     ext = data.get("format", "mp3")
     filename = f"tts_{provider_name}_{timestamp}.{ext}"

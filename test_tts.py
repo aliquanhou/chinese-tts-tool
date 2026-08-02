@@ -20,7 +20,7 @@ def test_provider_registry():
     assert "volcano" in PROVIDERS
     assert "xunfei" in PROVIDERS
     assert "baidu" in PROVIDERS
-    assert len(PROVIDERS) == 3
+    assert len(PROVIDERS) == 4
     print("[PASS] 服务商注册: 3/3 已注册")
 
 

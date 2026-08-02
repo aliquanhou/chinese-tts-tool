@@ -61,6 +61,15 @@
   }
   .header h1 .icon { font-size: 1.5rem; }
   .header-right { display:flex; gap:10px; align-items:center; }
+
+  /* ── Nav Tabs ── */
+  .nav-links { display:flex; gap:8px; }
+  .nav-link {
+    color: var(--text-secondary); text-decoration:none; font-size:0.82rem; font-weight:600;
+    padding:6px 14px; border-radius:99px; transition:all .2s;
+  }
+  .nav-link:hover { color:var(--text); background:var(--card); }
+  .nav-link.active { color:#fff; background: var(--accent, var(--volcano)); }
   .badge {
     font-size: 0.7rem;
     padding: 4px 10px;
@@ -369,6 +378,10 @@
 <header class="header">
   <h1><span class="icon">🔊</span> 中文 TTS</h1>
   <div class="header-right">
+    <nav class="nav-links">
+      <a href="/" class="nav-link active">语音合成</a>
+      <a href="/clone" class="nav-link">音色克隆</a>
+    </nav>
     <button class="btn btn-sm btn-outline" onclick="openConfig()" title="配置 API 密钥">⚙ 设置</button>
   </div>
 </header>
@@ -409,6 +422,25 @@
         <div class="control-group">
           <label>🔊 音量 <span class="val" id="volumeVal">50</span></label>
           <input type="range" id="volumeRange" min="0" max="100" value="50">
+        </div>
+        <div class="control-group" id="ultraOralWrap" style="display:none">
+          <label>💬 口语化等级</label>
+          <select id="ultraOralSelect">
+            <option value="mid">中 — 适度拟声词 (推荐)</option>
+            <option value="high">高 — 大量拟声词,最自然</option>
+            <option value="low">低 — 少量拟声词</option>
+          </select>
+        </div>
+        <div class="control-group" id="ultraSceneWrap" style="display:none">
+          <label>🎬 场景</label>
+          <select id="ultraSceneSelect">
+            <option value="0">通用</option>
+            <option value="1">散文 — 抒情朗读</option>
+            <option value="2">小说 — 有声书</option>
+            <option value="3">新闻 — 资讯播报</option>
+            <option value="4">广告 — 营销配音</option>
+            <option value="5">交互 — 对话助手</option>
+          </select>
         </div>
       </div>
 
@@ -504,6 +536,7 @@ let state = {
 const accentMap = {
   volcano: '#ff6b35',
   xunfei: '#00b4d8',
+  xunfei_ultra: '#8b5cf6',
   baidu: '#3b82f6',
 };
 
@@ -573,9 +606,15 @@ async function selectProvider(id) {
   state.currentProvider = id;
   const accent = accentMap[id] || '#ff6b35';
   state.accentColor = accent;
+
+  // Accent-bg map
+  const bgMap = {volcano: 'var(--volcano-bg)', xunfei: 'var(--xunfei-bg)', xunfei_ultra: 'rgba(139,92,246,0.12)', baidu: 'var(--baidu-bg)'};
   document.documentElement.style.setProperty('--accent', accent);
-  document.documentElement.style.setProperty('--accent-bg',
-    id === 'volcano' ? 'var(--volcano-bg)' : id === 'xunfei' ? 'var(--xunfei-bg)' : 'var(--baidu-bg)');
+  document.documentElement.style.setProperty('--accent-bg', bgMap[id] || 'var(--volcano-bg)');
+
+  // Show/hide 超拟人专用控件
+  document.getElementById('ultraOralWrap').style.display = (id === 'xunfei_ultra') ? '' : 'none';
+  document.getElementById('ultraSceneWrap').style.display = (id === 'xunfei_ultra') ? '' : 'none';
 
   renderProviderTabs();
 
@@ -633,16 +672,22 @@ async function synthesize() {
     `<div style="padding:20px;color:var(--text-muted);">⏳ 正在合成语音...</div>`;
 
   try {
+    const body = {
+      text,
+      provider: state.currentProvider,
+      voice: document.getElementById('voiceSelect').value,
+      speed: parseInt(document.getElementById('speedRange').value),
+      volume: parseInt(document.getElementById('volumeRange').value),
+      format: document.getElementById('formatSelect').value,
+    };
+    // 讯飞超拟人专用参数
+    if (state.currentProvider === 'xunfei_ultra') {
+      body.oral_level = document.getElementById('ultraOralSelect').value;
+      body.scene = parseInt(document.getElementById('ultraSceneSelect').value);
+    }
     const data = await api('/api/synthesize', {
       method: 'POST',
-      body: JSON.stringify({
-        text,
-        provider: state.currentProvider,
-        voice: document.getElementById('voiceSelect').value,
-        speed: parseInt(document.getElementById('speedRange').value),
-        volume: parseInt(document.getElementById('volumeRange').value),
-        format: document.getElementById('formatSelect').value,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (data.error) { toast('error', data.error); return; }
