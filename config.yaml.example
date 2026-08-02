@@ -1,0 +1,39 @@
+# ============================================================
+# 中文 TTS 工具配置  (复制为 config.yaml 并填入你的 API 密钥)
+# ============================================================
+# 支持多个语音合成服务商，按优先级排列
+
+# 默认使用的服务商: xunfei | volcano | baidu
+default_provider: xunfei
+
+# 火山引擎 (豆包语音) - 性价比最高 ¥100/百万字
+volcano:
+  # 从 https://console.volcengine.com/ 获取
+  app_id: ""
+  access_token: ""
+  voice_type: "zh_female_qingxin"
+  encoding: "mp3"
+
+# 讯飞开放平台 - 免费 500次/天 (推荐新手使用)
+xunfei:
+  # 从 https://console.xfyun.cn/ 创建应用 -> 语音合成 获取
+  app_id: ""
+  api_key: ""
+  api_secret: ""
+  voice_name: "xiaoqian"
+  speed: 50
+  volume: 50
+
+# 百度智能云 - 个人认证免费 5万次/180天
+baidu:
+  # 从 https://console.bce.baidu.com/ -> 语音技术 -> 创建应用 获取
+  api_key: ""
+  secret_key: ""
+  voice_person: 0
+  speed: 5
+  volume: 5
+
+# 输出设置
+output:
+  directory: "./output"
+  format: "mp3"

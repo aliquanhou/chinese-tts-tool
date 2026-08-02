@@ -1,0 +1,32 @@
+# API 密钥 — 绝对不能提交
+config.yaml
+
+# 生成的音频文件
+output/
+*.mp3
+*.wav
+*.ogg
+*.pcm
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# venv
+venv/
+.venv/
+env/

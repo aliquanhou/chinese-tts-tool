@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中文 TTS — 语音合成工具</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --card: #1e2130;
+    --card-hover: #252838;
+    --border: #2d3148;
+    --text: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --volcano: #ff6b35;
+    --volcano-bg: rgba(255,107,53,0.12);
+    --xunfei: #00b4d8;
+    --xunfei-bg: rgba(0,180,216,0.12);
+    --baidu: #3b82f6;
+    --baidu-bg: rgba(59,130,246,0.12);
+    --success: #22c55e;
+    --error: #ef4444;
+    --radius: 10px;
+    --radius-lg: 14px;
+    --shadow: 0 1px 3px rgba(0,0,0,.4);
+    --transition: 0.2s ease;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { font-size: 15px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .header h1 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .header h1 .icon { font-size: 1.5rem; }
+  .header-right { display:flex; gap:10px; align-items:center; }
+  .badge {
+    font-size: 0.7rem;
+    padding: 4px 10px;
+    border-radius: 99px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+
+  /* ── Main Layout ── */
+  .main {
+    max-width: 1260px;
+    margin: 0 auto;
+    padding: 24px 28px;
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 24px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+  }
+  .card-header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+  }
+
+  /* ── Provider Tabs ── */
+  .providers {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .provider-tab {
+    flex: 1;
+    padding: 13px 16px;
+    border-radius: var(--radius);
+    border: 2px solid var(--border);
+    background: var(--card);
+    cursor: pointer;
+    transition: all var(--transition);
+    text-align: center;
+    position: relative;
+  }
+  .provider-tab:hover { border-color: var(--text-muted); background: var(--card-hover); }
+  .provider-tab.active { border-color: var(--accent, var(--volcano)); }
+  .provider-tab .p-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 2px; }
+  .provider-tab .p-cost { font-size: 0.73rem; color: var(--text-muted); }
+  .provider-tab .p-free {
+    position:absolute; top:-8px; right:-4px;
+    background: var(--success); color:#fff; font-size:0.65rem; font-weight:700;
+    padding:2px 7px; border-radius:99px;
+  }
+
+  /* ── Text Input ── */
+  .textarea-wrap { position:relative; }
+  textarea {
+    width: 100%; height: 180px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 14px 16px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    line-height: 1.7;
+    resize: vertical;
+    transition: border-color var(--transition);
+    outline: none;
+  }
+  textarea:focus { border-color: var(--accent, var(--volcano)); }
+  textarea::placeholder { color: var(--text-muted); }
+  .char-count {
+    position:absolute; bottom:10px; right:14px;
+    font-size:0.73rem; color:var(--text-muted);
+  }
+  .char-count.warn { color: var(--volcano); }
+
+  /* ── Controls Row ── */
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .control-group { display:flex; flex-direction:column; gap:5px; }
+  .control-group label {
+    font-size:0.78rem; color:var(--text-secondary); font-weight:600;
+    display:flex; justify-content:space-between;
+  }
+  .control-group label .val { color: var(--accent, var(--volcano)); }
+  select {
+    background: var(--surface);
+    border:1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 9px 12px;
+    font-size:0.88rem;
+    font-family: inherit;
+    cursor: pointer;
+    outline:none;
+    transition: border-color var(--transition);
+  }
+  select:focus { border-color: var(--accent, var(--volcano)); }
+  input[type=range] {
+    -webkit-appearance:none;
+    width:100%; height:6px;
+    border-radius:3px;
+    background:var(--surface);
+    outline:none;
+    margin:6px 0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none;
+    width:18px; height:18px;
+    border-radius:50%;
+    background: var(--accent, var(--volcano));
+    cursor:pointer;
+    border:none;
+    box-shadow: 0 2px 6px rgba(0,0,0,.3);
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 12px 24px;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    transition: all var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary {
+    background: var(--accent, var(--volcano));
+    color: #fff;
+    width: 100%;
+    justify-content: center;
+    margin-top: 16px;
+    padding: 14px;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,.3);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: none;
+    transform: none;
+  }
+  .btn-sm {
+    padding: 7px 14px;
+    font-size: 0.78rem;
+    border-radius: 6px;
+  }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .btn-outline:hover { border-color: var(--text-muted); color: var(--text); }
+
+  /* ── Spinner ── */
+  .spinner {
+    width:20px; height:20px;
+    border:2.5px solid rgba(255,255,255,.3);
+    border-top-color:#fff;
+    border-radius:50%;
+    animation: spin 0.6s linear infinite;
+    display:none;
+  }
+  .btn-primary.loading .spinner { display:block; }
+  .btn-primary.loading .btn-text { display:none; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── Result Panel ── */
+  .result-panel { display:flex; flex-direction:column; gap:16px; }
+  .audio-card { text-align:center; }
+  audio {
+    width:100%; margin:8px 0;
+    border-radius: var(--radius);
+  }
+  .waveform {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    margin: 8px 0;
+  }
+  .wave-bar {
+    width: 4px;
+    background: var(--accent, var(--volcano));
+    border-radius: 2px;
+    animation: wave 0.8s ease-in-out infinite;
+  }
+  .wave-bar.playing { animation-play-state: running; }
+  .wave-bar.paused { animation-play-state: paused; }
+  @keyframes wave {
+    0%,100% { height: 8px; }
+    50% { height: 44px; }
+  }
+
+  .result-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .meta-item {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .meta-item .val { font-size: 1.1rem; font-weight: 700; color: var(--accent, var(--volcano)); }
+  .meta-item .label { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── History ── */
+  .history { max-height: 260px; overflow-y:auto; }
+  .history::-webkit-scrollbar { width:4px; }
+  .history::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .history-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px;
+    border-radius: var(--radius);
+    cursor:pointer;
+    transition: background var(--transition);
+    margin-bottom: 4px;
+  }
+  .history-item:hover { background:var(--card-hover); }
+  .history-item .h-provider {
+    font-size:0.65rem; font-weight:700; padding:2px 7px; border-radius:4px;
+    background:var(--accent-bg, var(--volcano-bg));
+    color:var(--accent, var(--volcano));
+    white-space:nowrap;
+  }
+  .history-item .h-text {
+    flex:1; font-size:0.8rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    color:var(--text-secondary);
+  }
+  .history-item .h-time { font-size:0.68rem; color:var(--text-muted); white-space:nowrap; }
+
+  .empty-state {
+    text-align:center; padding:32px 20px; color:var(--text-muted);
+  }
+  .empty-state .icon { font-size:2.5rem; margin-bottom:8px; }
+
+  /* ── Toast ── */
+  .toast {
+    position:fixed; top:20px; right:20px; z-index:999;
+    padding:14px 20px; border-radius:var(--radius); font-weight:600; font-size:0.88rem;
+    display:none; max-width:380px;
+    animation: slideIn 0.25s ease;
+  }
+  .toast.error { background:#451a1a; color:#fca5a5; border:1px solid #7f1d1d; display:block; }
+  .toast.success { background:#1a3a1a; color:#86efac; border:1px solid #166534; display:block; }
+  @keyframes slideIn { from { transform:translateX(60px); opacity:0; } to { transform:none; opacity:1; } }
+
+  /* ── Config Modal ── */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.6);
+    display:none; align-items:center; justify-content:center; z-index:200;
+  }
+  .modal-overlay.show { display:flex; }
+  .modal {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+    padding:28px; width:90%; max-width:480px; max-height:80vh; overflow-y:auto;
+  }
+  .modal h3 { margin-bottom:16px; font-size:1.1rem; }
+  .modal .field { margin-bottom:14px; }
+  .modal .field label { display:block; font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px; font-weight:600; }
+  .modal .field input {
+    width:100%; padding:10px 14px;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    color:var(--text); font-size:0.88rem; font-family:inherit; outline:none;
+  }
+  .modal .field input:focus { border-color: var(--accent, var(--volcano)); }
+  .modal .btn-row { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+
+  /* ── Responsive ── */
+  @media (max-width:800px) {
+    .main { grid-template-columns:1fr; }
+    .controls { grid-template-columns:1fr; }
+    .header { padding:12px 16px; }
+    .header h1 { font-size:1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <h1><span class="icon">🔊</span> 中文 TTS</h1>
+  <div class="header-right">
+    <button class="btn btn-sm btn-outline" onclick="openConfig()" title="配置 API 密钥">⚙ 设置</button>
+  </div>
+</header>
+
+<!-- Main Content -->
+<div class="main">
+
+  <!-- Left Panel -->
+  <div class="left-panel">
+    <!-- Provider Tabs -->
+    <div class="providers" id="providerTabs"></div>
+
+    <!-- Text Input -->
+    <div class="card">
+      <div class="card-header">📝 输入文本</div>
+      <div class="textarea-wrap">
+        <textarea id="textInput" placeholder="请输入要转换为语音的文本...&#10;例如：你好世界，欢迎使用中文 TTS 语音合成工具！"></textarea>
+        <span class="char-count" id="charCount">0 字</span>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <div class="control-group">
+          <label>🎤 发音人</label>
+          <select id="voiceSelect"></select>
+        </div>
+        <div class="control-group">
+          <label>🎵 格式</label>
+          <select id="formatSelect">
+            <option value="mp3">MP3 (推荐)</option>
+            <option value="wav">WAV</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>⚡ 语速 <span class="val" id="speedVal">50</span></label>
+          <input type="range" id="speedRange" min="0" max="100" value="50">
+        </div>
+        <div class="control-group">
+          <label>🔊 音量 <span class="val" id="volumeVal">50</span></label>
+          <input type="range" id="volumeRange" min="0" max="100" value="50">
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="synthBtn" onclick="synthesize()">
+        <span class="btn-text">▶ 开始合成</span>
+        <span class="spinner"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="result-panel">
+    <!-- Audio Player -->
+    <div class="card audio-card" id="audioCard">
+      <div class="card-header">🎧 播放</div>
+      <div id="audioContent">
+        <div class="empty-state">
+          <div class="icon">🎵</div>
+          <div>选择文本点击"开始合成"</div>
+          <div style="font-size:0.75rem;margin-top:4px;">音频将在此播放</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result Info -->
+    <div class="card" id="resultCard" style="display:none;">
+      <div class="card-header">📊 文件信息</div>
+      <div class="result-meta">
+        <div class="meta-item">
+          <div class="val" id="metaSize">--</div>
+          <div class="label">文件大小</div>
+        </div>
+        <div class="meta-item">
+          <div class="val" id="metaCost">--</div>
+          <div class="label">预估费用</div>
+        </div>
+        <div class="meta-item">
+          <div class="val" id="metaProvider">--</div>
+          <div class="label">服务商</div>
+        </div>
+        <div class="meta-item">
+          <div class="val" id="metaText">--</div>
+          <div class="label">文本长度</div>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-outline" id="downloadBtn" style="margin-top:12px;width:100%;" disabled>
+        💾 下载音频
+      </button>
+    </div>
+
+    <!-- History -->
+    <div class="card">
+      <div class="card-header">🕓 历史记录</div>
+      <div class="history" id="history">
+        <div class="empty-state">
+          <div class="icon">📋</div>
+          <div>暂无记录</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Config Modal -->
+<div class="modal-overlay" id="configModal">
+  <div class="modal">
+    <h3>⚙ API 密钥配置</h3>
+    <div id="configContent"></div>
+    <div class="btn-row">
+      <button class="btn btn-sm btn-outline" onclick="closeConfig()">取消</button>
+      <button class="btn btn-sm btn-primary" id="saveConfigBtn" style="margin:0;width:auto;padding:8px 20px;" onclick="saveConfig()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// State
+// ============================================================
+let state = {
+  providers: [],
+  currentProvider: 'volcano',
+  currentVoices: [],
+  lastAudioUrl: null,
+  lastFilename: null,
+  history: JSON.parse(localStorage.getItem('tts_history') || '[]'),
+  accentColor: '#ff6b35',
+};
+
+const accentMap = {
+  volcano: '#ff6b35',
+  xunfei: '#00b4d8',
+  baidu: '#3b82f6',
+};
+
+// ============================================================
+// Init
+// ============================================================
+document.addEventListener('DOMContentLoaded', async () => {
+  // Range events
+  ['speedRange','volumeRange'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateRangeVals);
+  });
+  document.getElementById('textInput').addEventListener('input', updateCharCount);
+  document.getElementById('voiceSelect').addEventListener('change', () => {
+    const voice = document.getElementById('voiceSelect').value;
+    // Persist voice preference
+    localStorage.setItem(`voice_${state.currentProvider}`, voice);
+  });
+
+  await loadProviders();
+  renderHistory();
+});
+
+// ============================================================
+// API Helpers
+// ============================================================
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  return res.json();
+}
+
+// ============================================================
+// Providers
+// ============================================================
+async function loadProviders() {
+  try {
+    const data = await api('/api/providers');
+    state.providers = data.providers;
+    state.currentProvider = data.default || 'volcano';
+    renderProviderTabs();
+    await selectProvider(state.currentProvider);
+  } catch (e) {
+    toast('error', '无法连接服务: ' + e.message);
+  }
+}
+
+function renderProviderTabs() {
+  const el = document.getElementById('providerTabs');
+  el.innerHTML = state.providers.map(p => {
+    const accent = accentMap[p.id] || '#888';
+    const isActive = p.id === state.currentProvider;
+    const freeBadge = p.cost_per_char === 0 ? '<span class="p-free">FREE</span>' : '';
+    return `
+      <div class="provider-tab ${isActive ? 'active' : ''}"
+           style="--accent:${accent}"
+           onclick="selectProvider('${p.id}')">
+        ${freeBadge}
+        <div class="p-name">${p.name}</div>
+        <div class="p-cost">${p.cost_label || '--'}</div>
+      </div>`;
+  }).join('');
+}
+
+async function selectProvider(id) {
+  state.currentProvider = id;
+  const accent = accentMap[id] || '#ff6b35';
+  state.accentColor = accent;
+  document.documentElement.style.setProperty('--accent', accent);
+  document.documentElement.style.setProperty('--accent-bg',
+    id === 'volcano' ? 'var(--volcano-bg)' : id === 'xunfei' ? 'var(--xunfei-bg)' : 'var(--baidu-bg)');
+
+  renderProviderTabs();
+
+  try {
+    const data = await api(`/api/voices?provider=${id}`);
+    state.currentVoices = data.voices || [];
+    renderVoiceSelect();
+  } catch (e) {
+    toast('error', '加载发音人失败: ' + e.message);
+  }
+
+  updateCharCount();
+}
+
+function renderVoiceSelect() {
+  const sel = document.getElementById('voiceSelect');
+  const saved = localStorage.getItem(`voice_${state.currentProvider}`);
+
+  let html = '';
+  state.currentVoices.forEach(v => {
+    const selected = (saved && String(v.id) === saved) ? 'selected' : (!saved && state.currentVoices.indexOf(v) === 0 ? 'selected' : '');
+    const free = v.description.includes('免费') ? ' 🆓' : '';
+    html += `<option value="${v.id}" ${selected}>${v.description}${free}</option>`;
+  });
+  sel.innerHTML = html || '<option>-- 无可用的发音人 --</option>';
+}
+
+// ============================================================
+// Controls
+// ============================================================
+function updateRangeVals() {
+  document.getElementById('speedVal').textContent = document.getElementById('speedRange').value;
+  document.getElementById('volumeVal').textContent = document.getElementById('volumeRange').value;
+}
+
+function updateCharCount() {
+  const text = document.getElementById('textInput').value;
+  const count = text.length;
+  const el = document.getElementById('charCount');
+  el.textContent = `${count} 字`;
+  el.className = 'char-count' + (count > 800 ? ' warn' : '');
+}
+
+// ============================================================
+// Synthesize
+// ============================================================
+async function synthesize() {
+  const text = document.getElementById('textInput').value.trim();
+  if (!text) { toast('error', '请输入要合成的文本'); return; }
+
+  const btn = document.getElementById('synthBtn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  document.getElementById('audioContent').innerHTML =
+    `<div style="padding:20px;color:var(--text-muted);">⏳ 正在合成语音...</div>`;
+
+  try {
+    const data = await api('/api/synthesize', {
+      method: 'POST',
+      body: JSON.stringify({
+        text,
+        provider: state.currentProvider,
+        voice: document.getElementById('voiceSelect').value,
+        speed: parseInt(document.getElementById('speedRange').value),
+        volume: parseInt(document.getElementById('volumeRange').value),
+        format: document.getElementById('formatSelect').value,
+      }),
+    });
+
+    if (data.error) { toast('error', data.error); return; }
+
+    // Show audio player
+    const audioUrl = `/api/audio/${data.filename}`;
+    state.lastAudioUrl = audioUrl;
+    state.lastFilename = data.filename;
+
+    document.getElementById('audioContent').innerHTML = `
+      <audio controls autoplay src="${audioUrl}" style="width:100%;margin:4px 0;"></audio>
+      <div class="waveform" id="waveform" style="margin-top:8px;">
+        ${Array.from({length:24}, (_,i) => `<div class="wave-bar paused" style="animation-delay:${(i*0.07).toFixed(2)}s"></div>`).join('')}
+      </div>
+    `;
+
+    // Wire audio events to waveform
+    setTimeout(() => {
+      const audio = document.querySelector('#audioContent audio');
+      const bars = document.querySelectorAll('#audioContent .wave-bar');
+      if (audio && bars.length) {
+        audio.addEventListener('play', () => bars.forEach(b => b.classList.replace('paused','playing')));
+        audio.addEventListener('pause', () => bars.forEach(b => b.classList.replace('playing','paused')));
+        audio.addEventListener('ended', () => bars.forEach(b => b.classList.replace('playing','paused')));
+      }
+    }, 100);
+
+    // Show result card
+    document.getElementById('resultCard').style.display = 'block';
+    document.getElementById('metaSize').textContent = `${data.size_kb} KB`;
+    document.getElementById('metaCost').textContent = data.cost ? data.cost.split('|')[1]?.trim() || '极低' : '--';
+    document.getElementById('metaProvider').textContent = data.provider_name || data.provider;
+    document.getElementById('metaText').textContent = `${text.length} 字`;
+
+    const dlBtn = document.getElementById('downloadBtn');
+    dlBtn.disabled = false;
+    dlBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = audioUrl;
+      a.download = data.filename;
+      a.click();
+    };
+
+    // Add to history
+    addHistory(text, data);
+
+    toast('success', `合成成功! ${data.size_kb} KB · ${data.cost ? data.cost.split('|')[1]?.trim() || '' : ''}`);
+  } catch (e) {
+    toast('error', '合成失败: ' + e.message);
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+// ============================================================
+// History
+// ============================================================
+function addHistory(text, data) {
+  state.history.unshift({
+    text: text.substring(0, 80),
+    provider: data.provider,
+    provider_name: data.provider_name,
+    filename: data.filename,
+    size_kb: data.size_kb,
+    time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+  });
+  if (state.history.length > 20) state.history = state.history.slice(0, 20);
+  localStorage.setItem('tts_history', JSON.stringify(state.history));
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById('history');
+  if (!state.history.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><div>暂无记录</div></div>';
+    return;
+  }
+  el.innerHTML = state.history.map((h, i) => {
+    const accent = accentMap[h.provider] || '#888';
+    return `
+      <div class="history-item" onclick="replayHistory(${i})" style="--accent:${accent}">
+        <span class="h-provider" style="--accent:${accent};--accent-bg:${h.provider==='volcano'?'var(--volcano-bg)':h.provider==='xunfei'?'var(--xunfei-bg)':'var(--baidu-bg)'}">${h.provider_name||h.provider}</span>
+        <span class="h-text" title="${h.text}">${h.text}</span>
+        <span class="h-time">${h.time}</span>
+      </div>`;
+  }).join('');
+}
+
+function replayHistory(i) {
+  const h = state.history[i];
+  if (!h) return;
+  document.getElementById('textInput').value = h.text;
+  updateCharCount();
+  if (h.provider && h.provider !== state.currentProvider) {
+    selectProvider(h.provider);
+  }
+  // Try to play
+  state.lastAudioUrl = `/api/audio/${h.filename}`;
+  state.lastFilename = h.filename;
+  document.getElementById('audioContent').innerHTML =
+    `<audio controls autoplay src="${state.lastAudioUrl}" style="width:100%;"></audio>`;
+  document.getElementById('resultCard').style.display = 'block';
+  document.getElementById('metaSize').textContent = `${h.size_kb} KB`;
+  document.getElementById('metaProvider').textContent = h.provider_name || h.provider;
+  document.getElementById('metaText').textContent = `${h.text.length} 字`;
+  document.getElementById('downloadBtn').disabled = false;
+  document.getElementById('downloadBtn').onclick = () => {
+    const a = document.createElement('a');
+    a.href = state.lastAudioUrl;
+    a.download = h.filename;
+    a.click();
+  };
+}
+
+// ============================================================
+// Config Modal
+// ============================================================
+async function openConfig() {
+  document.getElementById('configModal').classList.add('show');
+  // Build config form
+  const html = state.providers.map(p => `
+    <fieldset style="border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;">
+      <legend style="font-weight:700;color:${accentMap[p.id]||'#888'};padding:0 6px;">${p.name}</legend>
+      ${p.id === 'volcano' ? `
+        <div class="field"><label>App ID</label><input id="cfg_volcano_app_id" placeholder="从火山引擎控制台获取" value=""></div>
+        <div class="field"><label>Access Token</label><input id="cfg_volcano_access_token" placeholder="应用 token" value="" type="password"></div>
+      ` : p.id === 'xunfei' ? `
+        <div class="field"><label>App ID</label><input id="cfg_xunfei_app_id" placeholder="从讯飞控制台获取" value=""></div>
+        <div class="field"><label>API Key</label><input id="cfg_xunfei_api_key" placeholder="APIKey" value="" type="password"></div>
+        <div class="field"><label>API Secret</label><input id="cfg_xunfei_api_secret" placeholder="APISecret" value="" type="password"></div>
+      ` : p.id === 'baidu' ? `
+        <div class="field"><label>API Key (Client ID)</label><input id="cfg_baidu_api_key" placeholder="从百度控制台获取" value=""></div>
+        <div class="field"><label>Secret Key</label><input id="cfg_baidu_secret_key" placeholder="Secret Key" value="" type="password"></div>
+      ` : ''}
+    </fieldset>
+  `).join('');
+  document.getElementById('configContent').innerHTML = html;
+
+  // Load current config (sanitized)
+  try {
+    const config = await api('/api/config');
+    Object.entries(config).forEach(([provider, fields]) => {
+      if (typeof fields === 'object') {
+        Object.entries(fields).forEach(([key, val]) => {
+          const input = document.getElementById(`cfg_${provider}_${key}`);
+          if (input && val && !String(val).startsWith('***')) input.value = val;
+        });
+      }
+    });
+  } catch (e) { /* ignore */ }
+}
+
+function closeConfig() {
+  document.getElementById('configModal').classList.remove('show');
+}
+
+async function saveConfig() {
+  const providers = state.providers.map(p => p.id);
+  let saved = 0;
+  for (const pid of providers) {
+    const fields = {};
+    const inputs = document.querySelectorAll(`[id^="cfg_${pid}_"]`);
+    inputs.forEach(inp => {
+      const key = inp.id.replace(`cfg_${pid}_`, '');
+      if (inp.value.trim()) {
+        fields[key] = inp.value.trim();
+      }
+    });
+    if (Object.keys(fields).length > 0) {
+      try {
+        await api('/api/config', {
+          method: 'POST',
+          body: JSON.stringify({ provider: pid, fields }),
+        });
+        saved++;
+      } catch (e) { /* continue */ }
+    }
+  }
+  if (saved > 0) {
+    toast('success', `已保存 ${saved} 个服务商配置`);
+  }
+  closeConfig();
+}
+
+// ============================================================
+// Toast
+// ============================================================
+function toast(type, msg) {
+  const el = document.getElementById('toast');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  setTimeout(() => { el.className = 'toast'; }, 4000);
+}
+
+// Close modal on overlay click
+document.getElementById('configModal').addEventListener('click', function(e) {
+  if (e.target === this) closeConfig();
+});
+
+// Keyboard shortcut: Ctrl+Enter to synthesize
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    synthesize();
+  }
+});
+</script>
+</body>
+</html>
